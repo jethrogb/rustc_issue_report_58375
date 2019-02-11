@@ -1,0 +1,26 @@
+[package]
+name = "py_disc_model"
+version = "0.1.0"
+authors = ["Cem Karan <cem.f.karan.civ@mail.mil>"]
+edition = "2018"
+
+[dependencies.pyo3]
+pyo3 = {version="=0.6.0-alpha.2"}
+
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
+
+[dev-dependencies]
+proptest = ">=0.9"
+proptest-derive = ">=0.1"
+
+[lib]
+name = "py_disc_model"
+crate-type = ["cdylib"]
+
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"
