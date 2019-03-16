@@ -1,3 +1,6 @@
+extern crate core;
+extern crate rand;
+extern crate bit_set;
 mod std_facade {
     pub use std::borrow::ToOwned;
     pub use std::boxed::Box;
@@ -8,9 +11,9 @@ mod std_facade {
     pub use std::vec::Vec;
 }
 pub mod arbitrary {
-    use crate::strategy::statics;
+    use strategy::statics;
     mod traits {
-        use crate::strategy::Strategy;
+        use strategy::Strategy;
         use core::fmt;
         pub trait Arbitrary: Sized + fmt::Debug {
             type Parameters: Default;
@@ -28,8 +31,8 @@ pub mod arbitrary {
         pub fn any_with<A: Arbitrary>(args: ParamsFor<A>) -> StrategyFor<A> {
             A::arbitrary_with(args)
         }
-        use crate::num::{u128, u16, u32, u64, u8, usize};
-        impl crate::arbitrary::Arbitrary for u16 {
+        use num::{u128, u16, u32, u64, u8, usize};
+        impl ::arbitrary::Arbitrary for u16 {
             type Parameters = ();
             type Strategy = u16::Any;
             fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
@@ -37,20 +40,20 @@ pub mod arbitrary {
             }
         }
         mod char {
-            use core::char::*;
-            const VEC_MAX: usize = core::u16::MAX as usize;
-            use crate::arbitrary::*;
-            use crate::strategy::statics::static_map;
-            impl crate::arbitrary::Arbitrary for DecodeUtf16<<Vec<u16> as IntoIterator>::IntoIter> {
+            use std::char::*;
+            const VEC_MAX: usize = ::core::u16::MAX as usize;
+            use arbitrary::*;
+            use strategy::statics::static_map;
+            impl ::arbitrary::Arbitrary for DecodeUtf16<<Vec<u16> as IntoIterator>::IntoIter> {
                 type Parameters = ();
                 type Strategy = SMapped<Vec<u16>, Self>;
                 fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
                     static_map(vec(any::<u16>(), ..VEC_MAX), decode_utf16)
                 }
             }
-            use crate::collection::*;
+            use collection::*;
             type RangedParams1<A> = (SizeRange, A);
-            impl<A: Arbitrary> crate::arbitrary::Arbitrary for Vec<A> {
+            impl<A: Arbitrary> ::arbitrary::Arbitrary for Vec<A> {
                 type Parameters = RangedParams1<A::Parameters>;
                 type Strategy = VecStrategy<A::Strategy>;
                 fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
@@ -64,7 +67,7 @@ pub mod arbitrary {
     pub type SMapped<I, O> = statics::Map<StrategyFor<I>, fn(I) -> O>;
 }
 pub mod bits {
-    use crate::std_facade::{fmt, Vec};
+    use std_facade::{fmt, Vec};
     use bit_set::BitSet;
     pub trait BitSetLike: Clone + fmt::Debug {
         fn new_bitset(max: usize) -> Self;
@@ -95,8 +98,8 @@ pub mod bits {
         use core::iter::FromIterator;
         type Inner = BitSet;
         pub struct VarBitSet(Inner);
-        impl core::fmt::Debug for VarBitSet {
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        impl ::core::fmt::Debug for VarBitSet {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 match *self {
                     VarBitSet(ref __self_0_0) => {
                         let mut debug_trait_builder = f.debug_tuple("VarBitSet");
@@ -105,10 +108,10 @@ pub mod bits {
                 }
             }
         }
-        impl core::clone::Clone for VarBitSet {
+        impl ::core::clone::Clone for VarBitSet {
             fn clone(&self) -> VarBitSet {
                 match *self {
-                    VarBitSet(ref __self_0_0) => VarBitSet(core::clone::Clone::clone(&*__self_0_0)),
+                    VarBitSet(ref __self_0_0) => VarBitSet(::core::clone::Clone::clone(&*__self_0_0)),
                 }
             }
         }
@@ -140,13 +143,13 @@ pub mod bits {
     pub use self::varsize::VarBitSet;
 }
 pub mod collection {
-    use crate::bits::{BitSetLike, VarBitSet};
-    use crate::num::sample_uniform_incl;
-    use crate::strategy::*;
-    use crate::test_runner::*;
-    use core::ops::{Add, Range, RangeInclusive, RangeTo, RangeToInclusive};
+    use bits::{BitSetLike, VarBitSet};
+    use num::sample_uniform_incl;
+    use strategy::*;
+    use test_runner::*;
+    use core::ops::{Add, Range, RangeTo};
     pub struct SizeRange(Range<usize>);
-    pub fn size_range(from: impl Into<SizeRange>) -> SizeRange {
+    pub fn size_range<T: Into<SizeRange>>(from: T) -> SizeRange {
         from.into()
     }
     impl Default for SizeRange {
@@ -179,8 +182,8 @@ pub mod collection {
         element: T,
         size: SizeRange,
     }
-    impl<T: core::fmt::Debug + Strategy> core::fmt::Debug for VecStrategy<T> {
-        fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    impl<T: ::core::fmt::Debug + Strategy> ::core::fmt::Debug for VecStrategy<T> {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
             match *self {
                 VecStrategy {
                     element: ref __self_0_0,
@@ -192,7 +195,7 @@ pub mod collection {
             }
         }
     }
-    pub fn vec<T: Strategy>(element: T, size: impl Into<SizeRange>) -> VecStrategy<T> {
+    pub fn vec<T: Strategy, U: Into<SizeRange>>(element: T, size: U) -> VecStrategy<T> {
         let size = size.into();
         VecStrategy { element, size }
     }
@@ -234,9 +237,6 @@ pub mod collection {
                 .collect()
         }
         fn simplify(&mut self) -> bool {
-            if let Shrink::DeleteElement(ix) = self.shrink {
-                if ix == self.min_size {}
-            }
             unimplemented!()
         }
         fn complicate(&mut self) -> bool {
@@ -248,7 +248,7 @@ pub mod collection {
     }
 }
 pub mod num {
-    use crate::test_runner::TestRunner;
+    use test_runner::TestRunner;
     use rand::distributions::uniform::{SampleUniform, Uniform};
     use rand::distributions::{Distribution, Standard};
     pub fn sample_uniform_incl<X: SampleUniform>(run: &mut TestRunner, start: X, end: X) -> X {
@@ -256,12 +256,12 @@ pub mod num {
     }
     pub mod u8 {}
     pub mod u16 {
-        use crate::strategy::*;
-        use crate::test_runner::TestRunner;
+        use strategy::*;
+        use test_runner::TestRunner;
         use rand::Rng;
         pub struct Any(());
-        impl core::fmt::Debug for Any {
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        impl ::core::fmt::Debug for Any {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 match *self {
                     Any(ref __self_0_0) => {
                         let mut debug_trait_builder = f.debug_tuple("Any");
@@ -319,19 +319,19 @@ pub mod num {
     pub mod u128 {}
     pub mod usize {
         pub struct Any;
-        impl core::clone::Clone for Any {
+        impl ::core::clone::Clone for Any {
             fn clone(&self) -> Any {
                 *self
             }
         }
-        impl core::marker::Copy for Any {}
+        impl ::core::marker::Copy for Any {}
     }
 }
 pub mod strategy {
     mod traits {
-        use crate::std_facade::{fmt, Arc, Box, Rc};
-        use crate::strategy::*;
-        use crate::test_runner::*;
+        use std_facade::{fmt, Arc, Box, Rc};
+        use strategy::*;
+        use test_runner::*;
         pub type NewTree<S> = Result<<S as Strategy>::Tree, Reason>;
         pub trait Strategy: fmt::Debug {
             type Tree: ValueTree<Value = Self::Value>;
@@ -389,12 +389,12 @@ pub mod strategy {
                 (**self).complicate()
             }
         }
-        type BoxedVT<T> = Box<dyn ValueTree<Value = T>>;
-        pub struct BoxedStrategy<T>(Arc<dyn Strategy<Value = T, Tree = BoxedVT<T>>>);
-        pub struct SBoxedStrategy<T>(Arc<dyn Strategy<Value = T, Tree = BoxedVT<T>> + Sync + Send>);
+        type BoxedVT<T> = Box<ValueTree<Value = T>>;
+        pub struct BoxedStrategy<T>(Arc<Strategy<Value = T, Tree = BoxedVT<T>>>);
+        pub struct SBoxedStrategy<T>(Arc<Strategy<Value = T, Tree = BoxedVT<T>> + Sync + Send>);
         struct BoxedStrategyWrapper<T>(T);
-        impl<T: core::fmt::Debug> core::fmt::Debug for BoxedStrategyWrapper<T> {
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        impl<T: ::core::fmt::Debug> ::core::fmt::Debug for BoxedStrategyWrapper<T> {
+            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 match *self {
                     BoxedStrategyWrapper(ref __self_0_0) => {
                         let mut debug_trait_builder = f.debug_tuple("BoxedStrategyWrapper");
@@ -407,7 +407,7 @@ pub mod strategy {
         where
             T::Tree: 'static,
         {
-            type Tree = Box<dyn ValueTree<Value = T::Value>>;
+            type Tree = Box<ValueTree<Value = T::Value>>;
             type Value = T::Value;
             fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
                 Ok(Box::new(self.0.new_tree(runner)?))
@@ -415,7 +415,7 @@ pub mod strategy {
         }
     }
     mod map {
-        use crate::std_facade::Arc;
+        use std_facade::Arc;
         use core::marker::PhantomData;
         pub struct Perturb<S, F> {
             pub source: S,
@@ -423,21 +423,21 @@ pub mod strategy {
         }
     }
     mod recursive {
-        use crate::std_facade::{fmt, Arc, Box, Vec};
-        use crate::strategy::traits::*;
+        use std_facade::{fmt, Arc, Box, Vec};
+        use strategy::traits::*;
         pub struct Recursive<T, F> {
-            pd: std::marker::PhantomData<(T, F)>,
+            pd: ::std::marker::PhantomData<(T, F)>,
         }
         impl<T: fmt::Debug + 'static, R: Strategy + 'static, F: Fn(BoxedStrategy<T>) -> R> Recursive<T, F> {
-            pub fn new(
-                base: impl Strategy<Value = T> + 'static,
+            pub fn new<U: Strategy<Value = T> + 'static>(
+                base: U,
                 depth: u32,
                 desired_size: u32,
                 expected_branch_size: u32,
                 recurse: F,
             ) -> Self {
                 Self {
-                    pd: std::marker::PhantomData,
+                    pd: ::std::marker::PhantomData,
                 }
             }
         }
@@ -446,9 +446,9 @@ pub mod strategy {
     pub use self::recursive::*;
     pub use self::traits::*;
     pub mod statics {
-        use crate::std_facade::fmt;
-        use crate::strategy::traits::*;
-        use crate::test_runner::*;
+        use std_facade::fmt;
+        use strategy::traits::*;
+        use test_runner::*;
         pub trait MapFn<T> {
             type Output: fmt::Debug;
             fn apply(&self, t: T) -> Self::Output;
@@ -514,12 +514,12 @@ pub mod test_runner {
             PassThrough,
             _NonExhaustive,
         }
-        impl core::clone::Clone for RngAlgorithm {
+        impl ::core::clone::Clone for RngAlgorithm {
             fn clone(&self) -> RngAlgorithm {
                 *self
             }
         }
-        impl core::marker::Copy for RngAlgorithm {}
+        impl ::core::marker::Copy for RngAlgorithm {}
         pub struct TestRng;
         impl RngCore for TestRng {
             fn next_u32(&mut self) -> u32 {
@@ -540,7 +540,7 @@ pub mod test_runner {
         pub struct Reason;
     }
     mod runner {
-        use crate::test_runner::TestRng;
+        use test_runner::TestRng;
         pub struct TestRunner {
             rng: TestRng,
         }
